@@ -18,15 +18,21 @@ The setup is designed for **learning** and **reproducibility** — two EC2 insta
 - **kubectl / eksctl** – CLI tools to manage EKS
 
 **Pipeline flow:**
-1. Developer pushes code to GitHub.
-2. Jenkins pipeline builds & smoke-tests Docker image.
-3. Image is pushed to Amazon ECR.
-4. Jenkins applies Kubernetes manifests & updates the deployment.
-5. App is served via AWS Load Balancer with external DNS.
+1. Developer pushes code to GitHub.  
+2. Jenkins pipeline builds & smoke-tests Docker image.  
+3. Image is pushed to Amazon ECR.  
+4. Jenkins applies Kubernetes manifests & updates the deployment.  
+5. App is served via AWS Load Balancer with external DNS.  
+
+**Diagram:**  
+
+![EKS Jenkins CI/CD Architecture](eks_jenkins_cicd_architecture.png)
 
 ---
 
 ## 📂 Repository Structure
+
+```
 .
 ├── Dockerfile
 ├── .dockerignore
@@ -38,99 +44,126 @@ The setup is designed for **learning** and **reproducibility** — two EC2 insta
 ├── Jenkinsfile
 ├── .env.aws
 └── README.md
+```
 
-
-- **server.js** → Simple Node.js HTTP app (`Hello from EKS via Jenkins CI/CD! 🚀`)
-- **Dockerfile** → Builds a minimal `node:20-alpine` image
-- **Kubernetes manifests** → Namespace, Deployment, Service (LoadBalancer)
-- **Jenkinsfile** → Declarative pipeline: build → test → push → deploy (with rollback)
-- **.env.aws** → Optional environment values (Jenkins resolves dynamically)
+- **server.js** → Simple Node.js HTTP app (`Hello from EKS via Jenkins CI/CD! 🚀`)  
+- **Dockerfile** → Builds a minimal `node:20-alpine` image  
+- **Kubernetes manifests** → Namespace, Deployment, Service (LoadBalancer)  
+- **Jenkinsfile** → Declarative pipeline: build → test → push → deploy (with rollback)  
+- **.env.aws** → Optional environment values (Jenkins resolves dynamically)  
 
 ---
 
 ## ⚙️ Setup Instructions
 
 ### 1. Provision AWS Resources
-- **2x EC2 (Ubuntu 22.04)** → Workbench + Jenkins
-- Attach IAM roles:
-  - Jenkins EC2 → `AmazonEKSClusterPolicy`, `AmazonEC2ContainerRegistryFullAccess`
-  - Nodegroup role → `AmazonEC2ContainerRegistryReadOnly`
+- **2x EC2 (Ubuntu 22.04)** → Workbench + Jenkins  
+- Attach IAM roles:  
+  - Jenkins EC2 → `AmazonEKSClusterPolicy`, `AmazonEC2ContainerRegistryFullAccess`  
+  - Nodegroup role → `AmazonEC2ContainerRegistryReadOnly`  
 - Security groups:  
-  - Port **22** for SSH  
-  - Port **8080** for Jenkins  
-  - Port **80** for ELB traffic  
+  - Port **22** → SSH  
+  - Port **8080** → Jenkins  
+  - Port **80** → ELB traffic  
 
 ### 2. Install Tools
+
 **On Workbench:**
 ```bash
 sudo apt update -y
 sudo apt install -y unzip git curl docker.io jq
 # Install awscli, eksctl, kubectl
+```
+
 **On Jenkins EC2:**
+```bash
 sudo apt update -y
 sudo apt install -y openjdk-17-jdk docker.io git curl unzip
 # Install awscli, kubectl, Jenkins
 sudo usermod -aG docker jenkins
+```
 
 ### 3. Create EKS Cluster
+```bash
 export AWS_REGION=us-west-1
 export CLUSTER=eks-demo-dipen
 
-eksctl create cluster --name $CLUSTER --version 1.29 \
-  --region $AWS_REGION --node-type t3.large --nodes 2
+eksctl create cluster --name $CLUSTER --version 1.29   --region $AWS_REGION --node-type t3.large --nodes 2
+```
 
 ### 4. Create ECR Repository
+```bash
 export APP_NAME=hello-web
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-aws ecr create-repository \
-  --repository-name $APP_NAME \
-  --region $AWS_REGION
+aws ecr create-repository   --repository-name $APP_NAME   --region $AWS_REGION
+```
 
 ### 5. Configure Jenkins Pipeline
-In Jenkins UI → New Item → Pipeline → Pipeline script from SCM → Git URL
-Branch: main
-Save → Build Now
+- In Jenkins UI → **New Item → Pipeline → Pipeline script from SCM → Git URL**  
+- Branch: `main`  
+- Save → **Build Now**  
 
 ### 6. Validate
+```bash
 kubectl -n demo get pods,svc
+```
 
-### Ouput
-Open the ELB EXTERNAL-IP in a browser →
-Hello from EKS via Jenkins CI/CD! 🚀
+**Output:**  
+Open the **ELB EXTERNAL-IP** in a browser →  
+`Hello from EKS via Jenkins CI/CD! 🚀`
+
+---
 
 ## 🌀 CI/CD Pipeline Overview
 
-### Stages in Jenkinsfile:
-Checkout → Pull latest repo from GitHub
-Resolve AWS/ECR & Login → Fetch Account ID, ensure repo exists
-Build & Smoke Test → Build Docker image, verify app locally
-Push to ECR → Push tagged + latest images
-Configure kubectl → Authenticate with EKS cluster
-Deploy to EKS → Apply manifests, patch deployment image, wait for rollout
-Rollback → If rollout fails, revert to previous image
+**Stages in `Jenkinsfile`:**
+1. **Checkout** → Pull latest repo from GitHub  
+2. **Resolve AWS/ECR & Login** → Fetch Account ID, ensure repo exists  
+3. **Build & Smoke Test** → Build Docker image, verify app locally  
+4. **Push to ECR** → Push tagged + latest images  
+5. **Configure kubectl** → Authenticate with EKS cluster  
+6. **Deploy to EKS** → Apply manifests, patch deployment image, wait for rollout  
+7. **Rollback** → If rollout fails, revert to previous image  
+
+---
 
 ## 🌐 Demo Application
 
-### Minimal Node.js server:
+Minimal Node.js server:
+
+```js
 const http = require('http');
 http.createServer((req,res)=>{
   res.writeHead(200, {'Content-Type':'text/plain'});
   res.end('Hello from EKS via Jenkins CI/CD! 🚀\n');
 }).listen(3000);
+```
+
+---
 
 ## 🧹 Cleanup
 
-### To avoid AWS charges:
+To avoid AWS charges:
+
+```bash
 eksctl delete cluster --name $CLUSTER --region $AWS_REGION
 aws ecr delete-repository --repository-name hello-web --region $AWS_REGION --force
 # Terminate EC2 instances (Workbench & Jenkins)
+```
+
+---
 
 ## 📌 Notes
 
-## This setup is for demo/learning purposes.
-# For production:
-Use Amazon Linux 2023 or Bottlerocket AMIs for nodes
-Enable CloudWatch logging & monitoring
-Replace AdministratorAccess with least-privilege IAM
-Use Ingress + AWS Load Balancer Controller + ACM TLS for HTTPS
+This setup is for **demo/learning purposes**.  
+
+For production:
+- Use **Amazon Linux 2023** or **Bottlerocket** AMIs for nodes  
+- Enable **CloudWatch logging & monitoring**  
+- Replace `AdministratorAccess` with **least-privilege IAM**  
+- Use **Ingress + AWS Load Balancer Controller + ACM TLS** for HTTPS  
+
+---
+
+✨ Enjoy your fully automated **Code → Jenkins → ECR → EKS → ELB** pipeline!
