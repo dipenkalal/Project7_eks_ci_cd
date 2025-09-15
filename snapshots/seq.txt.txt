@@ -1,0 +1,40 @@
+📸 Screenshot Order
+1. Infrastructure Setup
+
+EKS Cluster Created – (Cluster overview, eks-demo-dipen)
+
+EKS Nodes (Compute tab) – showing node group with 2× t3.large nodes
+
+Auto Scaling Group (ASG) – created for worker nodes (eks-ng-1)
+
+Launch Template – for node group (AMI + security groups)
+
+EC2 Instances Running – JenkinsEC2, WorkBench, and EKS nodes
+
+JenkinsEC2 Instance Details – (t3.medium with IAM role eks)
+
+Workbench Instance Details – (t3.medium with IAM role eks)
+
+2. Networking + Load Balancer
+
+Classic Load Balancer – DNS, targets in service (internet-facing)
+
+3. CI/CD Pipeline Steps
+
+Repository Structure (GitHub) – Dockerfile, server.js, Jenkinsfile, YAMLs
+
+Pipeline Configuration (Jenkins) – Git SCM, build, deploy steps
+
+kubectl Validation – Pods + Service output in terminal screenshot
+
+ECR Repository – image hello-web:latest pushed successfully
+
+4. Application Validation
+
+Browser Output – “Hello from EKS via Jenkins CI/CD! Dipen 🚀”
+
+5. Cleanup
+
+Cluster Termination – EKS deletion in progress
+
+Final Notes Section – Cleanup commands (eksctl delete cluster, aws ecr delete-repository)
