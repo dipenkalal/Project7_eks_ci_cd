@@ -175,7 +175,7 @@ kubectl -n demo get pods,svc
 
 **Output:**  
 Open the **ELB EXTERNAL-IP** in a browser →  
-`Hello from EKS via Jenkins CI/CD! 🚀`
+`Hello from EKS via Jenkins CI/CD! Dipen!`
 
 ---
 
