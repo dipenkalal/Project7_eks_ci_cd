@@ -70,33 +70,97 @@ The setup is designed for **learning** and **reproducibility** — two EC2 insta
 
 **On Workbench:**
 ```bash
+# Update system
 sudo apt update -y
+sudo apt upgrade -y
+
+# Install base tools
 sudo apt install -y unzip git curl docker.io jq
-# Install awscli, eksctl, kubectl
+
+# Install AWS CLI v2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+# Install eksctl
+curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz"
+tar -xzf eksctl_$(uname -s)_amd64.tar.gz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version
+
+# Install kubectl (latest stable)
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/
+kubectl version --client
+
 ```
 
 **On Jenkins EC2:**
 ```bash
+# Update system
 sudo apt update -y
+sudo apt upgrade -y
+
+# Install base tools
 sudo apt install -y openjdk-17-jdk docker.io git curl unzip
-# Install awscli, kubectl, Jenkins
+
+# Install AWS CLI v2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+# Install kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/
+kubectl version --client
+
+# Install Jenkins
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \
+  /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian-stable binary/ | \
+  sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt update -y
+sudo apt install -y jenkins
+
+# Add Jenkins user to Docker group
 sudo usermod -aG docker jenkins
+
+# Restart Jenkins service
+sudo systemctl enable jenkins
+sudo systemctl start jenkins
+sudo systemctl status jenkins
 ```
 
 ### 3. Create EKS Cluster
 ```bash
+# Set AWS region and cluster name
 export AWS_REGION=us-west-1
 export CLUSTER=eks-demo-dipen
 
-eksctl create cluster --name $CLUSTER --version 1.29   --region $AWS_REGION --node-type t3.large --nodes 2
+# Create EKS cluster with 2 nodes (t3.large)
+eksctl create cluster \
+  --name $CLUSTER \
+  --version 1.29 \
+  --region $AWS_REGION \
+  --node-type t3.large \
+  --nodes 2
 ```
 
 ### 4. Create ECR Repository
 ```bash
+# Set app name and fetch AWS account ID
 export APP_NAME=hello-web
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-aws ecr create-repository   --repository-name $APP_NAME   --region $AWS_REGION
+# Create repository in ECR
+aws ecr create-repository \
+  --repository-name $APP_NAME \
+  --region $AWS_REGION
 ```
 
 ### 5. Configure Jenkins Pipeline
